@@ -1,0 +1,3 @@
+BLEU-1,BLEU-2,BLEU-3,BLEU-4,ROUGE-1,ROUGE-2,ROUGE-L,avg_latency_ms,model,test_samples
+0.7158,0.6296,0.4891,0.3423,0.6894,0.4385,0.6894,380.6,Salesforce/blip-image-captioning-base,3
+0.7697,0.6561,0.4908,0.3362,0.7241,0.4333,0.7241,324.8,models/fine_tuned,3

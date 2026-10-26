@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.venv/
+venv/
+ENV/
+
+# PyTorch and Models
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+models/checkpoints/
+models/fine_tuned/
+
+# Datasets and Large Files
+data/raw/
+data/processed/
+data/coco/
+data/flickr8k/
+*.zip
+*.tar.gz
+
+# Outputs and logs
+outputs/predictions/
+outputs/logs/
+*.log
+
+# Environment & IDE
+.env
+.DS_Store
+.vscode/
+.idea/
+.pytest_cache/

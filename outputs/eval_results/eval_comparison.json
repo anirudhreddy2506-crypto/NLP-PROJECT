@@ -1,0 +1,52 @@
+{
+  "baseline": {
+    "BLEU-1": 0.7158,
+    "BLEU-2": 0.6296,
+    "BLEU-3": 0.4891,
+    "BLEU-4": 0.3423,
+    "ROUGE-1": 0.6894,
+    "ROUGE-2": 0.4385,
+    "ROUGE-L": 0.6894,
+    "avg_latency_ms": 380.6,
+    "model": "Salesforce/blip-image-captioning-base",
+    "test_samples": 3
+  },
+  "fine_tuned": {
+    "BLEU-1": 0.7697,
+    "BLEU-2": 0.6561,
+    "BLEU-3": 0.4908,
+    "BLEU-4": 0.3362,
+    "ROUGE-1": 0.7241,
+    "ROUGE-2": 0.4333,
+    "ROUGE-L": 0.7241,
+    "avg_latency_ms": 324.8,
+    "model": "models/fine_tuned",
+    "test_samples": 3
+  },
+  "comparison_table": [
+    {
+      "BLEU-1": 0.7158,
+      "BLEU-2": 0.6296,
+      "BLEU-3": 0.4891,
+      "BLEU-4": 0.3423,
+      "ROUGE-1": 0.6894,
+      "ROUGE-2": 0.4385,
+      "ROUGE-L": 0.6894,
+      "avg_latency_ms": 380.6,
+      "model": "Salesforce/blip-image-captioning-base",
+      "test_samples": 3
+    },
+    {
+      "BLEU-1": 0.7697,
+      "BLEU-2": 0.6561,
+      "BLEU-3": 0.4908,
+      "BLEU-4": 0.3362,
+      "ROUGE-1": 0.7241,
+      "ROUGE-2": 0.4333,
+      "ROUGE-L": 0.7241,
+      "avg_latency_ms": 324.8,
+      "model": "models/fine_tuned",
+      "test_samples": 3
+    }
+  ]
+}

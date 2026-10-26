@@ -1,0 +1,31 @@
+# VisionCaption AI System Configuration
+
+system:
+  device: "auto"  # 'auto' selects mps if available, else cpu. Can be 'cpu', 'mps'
+  allow_mps_fallback: true
+  seed: 42
+
+models:
+  baseline_captioner: "Salesforce/blip-image-captioning-base"
+  local_checkpoint_dir: "models/checkpoints"
+  fine_tuned_dir: "models/fine_tuned"
+
+generation:
+  default_mode: "beam_search"
+  max_new_tokens: 50
+  min_length: 5
+  num_beams: 4
+  repetition_penalty: 1.2
+  temperature: 0.7
+  top_p: 0.9
+
+image_processing:
+  supported_formats: ["jpg", "jpeg", "png", "webp"]
+  max_image_size_mb: 15
+  target_size: [384, 384]
+
+paths:
+  data_dir: "data"
+  models_dir: "models"
+  outputs_dir: "outputs"
+  logs_dir: "outputs/logs"

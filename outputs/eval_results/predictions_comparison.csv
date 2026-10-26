@@ -1,0 +1,7 @@
+image_id,model,prediction,references,latency_ms
+smoke_img_0003,Salesforce/blip-image-captioning-base,a pink flower on a green background,a vibrant pink flower blooming in a green garden | a close up of a bright pink blossom | a pink flower surrounded by lush green foliage,466.1
+smoke_img_0000,Salesforce/blip-image-captioning-base,a red house with a green roof on a blue background,a red house with a green roof under a blue sky | a small cozy red house with trees nearby | a red cottage situated on a hill,338.5
+smoke_img_0008,Salesforce/blip-image-captioning-base,a pink flower on a green background,a vibrant pink flower blooming in a green garden | a close up of a bright pink blossom | a pink flower surrounded by lush green foliage,337.3
+smoke_img_0003,models/fine_tuned,a pink flower in the middle of a green field,a vibrant pink flower blooming in a green garden | a close up of a bright pink blossom | a pink flower surrounded by lush green foliage,323.7
+smoke_img_0000,models/fine_tuned,a red house with a green roof against a blue sky,a red house with a green roof under a blue sky | a small cozy red house with trees nearby | a red cottage situated on a hill,335.3
+smoke_img_0008,models/fine_tuned,a pink flower in the middle of a green field,a vibrant pink flower blooming in a green garden | a close up of a bright pink blossom | a pink flower surrounded by lush green foliage,315.3
