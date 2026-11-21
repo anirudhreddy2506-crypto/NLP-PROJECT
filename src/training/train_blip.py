@@ -1,6 +1,7 @@
 """
 Reproducible fine-tuning pipeline for BLIP image captioning models.
-Supports Apple Silicon MPS acceleration, gradient accumulation, checkpointing, and validation logging.
+Supports Apple Silicon MPS acceleration, gradient accumulation, checkpointing,
+validation logging, and automatic training curve visualization.
 """
 
 import os
@@ -26,8 +27,19 @@ from src.training.dataset import (
     split_image_caption_data,
     prepare_smoke_test_data,
 )
+from src.utils.visualizer import render_loss_curves
 
 logger = setup_logger("visioncaption.training")
+
+
+def plot_training_history(
+    history: Dict[str, List[float]],
+    output_path: str = "outputs/eval_results/training_curves.png",
+) -> None:
+    """
+    Renders and exports train vs validation loss curves over epochs.
+    """
+    render_loss_curves(history, output_path=output_path)
 
 
 def train_blip(
@@ -46,10 +58,7 @@ def train_blip(
     smoke_samples: int = 20,
 ) -> Dict[str, Any]:
     """
-    Executes fine-tuning loop for BLIP on image-caption pairs.
-
-    Returns:
-        Dict[str, Any]: Training summary including final train loss, val loss, and checkpoint paths.
+    Executes fine-tuning loop for BLIP on image-caption pairs with gradient accumulation and memory safety.
     """
     start_time = time.time()
     os.makedirs(output_dir, exist_ok=True)
@@ -72,12 +81,11 @@ def train_blip(
 
     logger.info("Loaded %d raw image records from %s.", len(raw_records), data_path)
 
-    # Split strictly by image ID
+    # Split strictly by image ID to prevent reference caption leakage
     train_records, val_records, test_records = split_image_caption_data(
         raw_records, train_ratio=0.70, val_ratio=0.15, seed=42
     )
 
-    # Save test split for held-out evaluation
     test_split_path = os.path.join(PROJECT_ROOT, "data/processed/test_split.json")
     os.makedirs(os.path.dirname(test_split_path), exist_ok=True)
     with open(test_split_path, "w", encoding="utf-8") as f:
@@ -87,17 +95,26 @@ def train_blip(
     # 3. Model & Processor Loading
     start_model = resume_from_checkpoint if resume_from_checkpoint else model_name
     logger.info("Loading BLIP processor from '%s'...", model_name)
-    processor = BlipProcessor.from_pretrained(model_name)
+    try:
+        processor = BlipProcessor.from_pretrained(model_name, local_files_only=True)
+    except Exception:
+        processor = BlipProcessor.from_pretrained(model_name)
 
     logger.info("Loading BLIP model weights from '%s'...", start_model)
     try:
-        model = BlipForConditionalGeneration.from_pretrained(start_model)
+        try:
+            model = BlipForConditionalGeneration.from_pretrained(start_model, local_files_only=True)
+        except Exception:
+            model = BlipForConditionalGeneration.from_pretrained(start_model)
         model.to(device)
     except Exception as e:
         if device.type == "mps":
             logger.warning("MPS loading failed (%s). Falling back to CPU.", e)
             device = torch.device("cpu")
-            model = BlipForConditionalGeneration.from_pretrained(start_model)
+            try:
+                model = BlipForConditionalGeneration.from_pretrained(start_model, local_files_only=True)
+            except Exception:
+                model = BlipForConditionalGeneration.from_pretrained(start_model)
             model.to(device)
         else:
             raise e
@@ -113,7 +130,7 @@ def train_blip(
 
     # 5. Optimizer and Scheduler
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
-    total_steps = (len(train_loader) // gradient_accumulation_steps) * num_epochs
+    total_steps = (len(train_loader) // max(1, gradient_accumulation_steps)) * num_epochs
     warmup_steps = max(1, int(total_steps * 0.1))
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=warmup_steps, num_training_steps=max(1, total_steps)
@@ -157,10 +174,9 @@ def train_blip(
 
             except Exception as e:
                 if device.type == "mps":
-                    logger.warning("MPS out-of-memory or kernel error during step %d: %s. Falling back to CPU.", step, e)
+                    logger.warning("MPS error during step %d: %s. Falling back to CPU.", step, e)
                     device = torch.device("cpu")
                     model.to(device)
-                    # Retry current step on CPU
                     input_ids = input_ids.to(device)
                     attention_mask = attention_mask.to(device)
                     pixel_values = pixel_values.to(device)
@@ -225,6 +241,10 @@ def train_blip(
     model.save_pretrained(output_dir)
     processor.save_pretrained(output_dir)
 
+    # 8. Plot and export training curves
+    curves_path = os.path.join(PROJECT_ROOT, "outputs/eval_results/training_curves.png")
+    plot_training_history(history, output_path=curves_path)
+
     total_duration = time.time() - start_time
     summary = {
         "base_model": model_name,
@@ -240,6 +260,7 @@ def train_blip(
         "total_training_duration_seconds": round(total_duration, 2),
         "device_used": str(device),
         "test_split_path": test_split_path,
+        "curves_path": curves_path,
     }
 
     metrics_file = os.path.join(output_dir, "training_metrics.json")

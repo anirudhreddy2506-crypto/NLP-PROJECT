@@ -1,9 +1,12 @@
 """
-BLIP Captioner model management and inference class.
+BLIP Captioner model management, inference, and multimodal scoring class.
 Loads Salesforce/blip-image-captioning-base or local fine-tuned checkpoints.
+Supports Apple Silicon MPS acceleration, automatic CPU fallback, and visual grounding evaluation.
 """
 
-from typing import Optional, Union
+import os
+import gc
+from typing import Optional, Union, Dict, Any
 import logging
 from PIL import Image
 import torch
@@ -16,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class BLIPCaptioner:
     """
-    Wrapper around HuggingFace's BLIP for conditional and unconditional image captioning.
+    Wrapper around HuggingFace's BLIP for conditional, unconditional, and visual grounding inference.
     """
 
     def __init__(
@@ -35,21 +38,34 @@ class BLIPCaptioner:
     def _load_model(self) -> None:
         """
         Loads the BlipProcessor and BlipForConditionalGeneration onto the selected device.
-        Includes automatic fallback to CPU if MPS memory or kernel initialization fails.
+        Includes local offline cache resolution and automatic fallback to CPU if MPS encounters an error.
         """
         logger.info("Loading BLIP processor from '%s'...", self.model_name_or_path)
         try:
-            self.processor = BlipProcessor.from_pretrained(self.model_name_or_path)
-        except Exception as e:
-            logger.error("Failed to load BLIP processor: %s", e)
-            raise RuntimeError(f"Could not load processor from {self.model_name_or_path}: {e}")
+            # Try offline local files first to avoid network timeout delays
+            self.processor = BlipProcessor.from_pretrained(
+                self.model_name_or_path, local_files_only=True
+            )
+        except Exception:
+            try:
+                self.processor = BlipProcessor.from_pretrained(self.model_name_or_path)
+            except Exception as e:
+                logger.error("Failed to load BLIP processor: %s", e)
+                raise RuntimeError(f"Could not load processor from {self.model_name_or_path}: {e}")
 
         logger.info("Loading BLIP model weights onto device '%s'...", self.device)
         try:
-            self.model = BlipForConditionalGeneration.from_pretrained(
-                self.model_name_or_path,
-                torch_dtype=self.torch_dtype,
-            )
+            try:
+                self.model = BlipForConditionalGeneration.from_pretrained(
+                    self.model_name_or_path,
+                    torch_dtype=self.torch_dtype,
+                    local_files_only=True,
+                )
+            except Exception:
+                self.model = BlipForConditionalGeneration.from_pretrained(
+                    self.model_name_or_path,
+                    torch_dtype=self.torch_dtype,
+                )
             self.model.to(self.device)
             self.model.eval()
             logger.info("BLIP model successfully loaded and ready on %s.", self.device)
@@ -59,10 +75,17 @@ class BLIPCaptioner:
                     "Encountered error loading BLIP on MPS (%s). Falling back to CPU.", e
                 )
                 self.device = torch.device("cpu")
-                self.model = BlipForConditionalGeneration.from_pretrained(
-                    self.model_name_or_path,
-                    torch_dtype=torch.float32,
-                )
+                try:
+                    self.model = BlipForConditionalGeneration.from_pretrained(
+                        self.model_name_or_path,
+                        torch_dtype=torch.float32,
+                        local_files_only=True,
+                    )
+                except Exception:
+                    self.model = BlipForConditionalGeneration.from_pretrained(
+                        self.model_name_or_path,
+                        torch_dtype=torch.float32,
+                    )
                 self.model.to(self.device)
                 self.model.eval()
                 logger.info("BLIP model successfully loaded on fallback device: CPU.")
@@ -84,20 +107,6 @@ class BLIPCaptioner:
     ) -> str:
         """
         Generates a caption for an input PIL Image.
-
-        Args:
-            image: PIL.Image instance.
-            text_prompt: Optional conditional prefix string (e.g. 'a photo of').
-            max_new_tokens: Maximum number of tokens to generate.
-            min_length: Minimum tokens in output.
-            num_beams: Number of beams for beam search.
-            repetition_penalty: Repetition penalty factor.
-            do_sample: If True, uses nucleus sampling instead of greedy/beam search.
-            temperature: Sampling temperature when do_sample=True.
-            top_p: Top-p probability threshold when do_sample=True.
-
-        Returns:
-            str: Cleaned generated caption.
         """
         if self.model is None or self.processor is None:
             raise RuntimeError("Model or processor is not initialized.")
@@ -156,3 +165,78 @@ class BLIPCaptioner:
 
         caption = self.processor.decode(output_ids[0], skip_special_tokens=True).strip()
         return caption
+
+    def score_text_grounding(
+        self,
+        image: Image.Image,
+        claim_phrase: str,
+    ) -> Dict[str, float]:
+        """
+        Evaluates visual grounding for a candidate phrase/claim by calculating:
+        1. Negative log-likelihood (cross-entropy loss) of the phrase conditioned on the target image.
+        2. Contrastive Delta (Δ) against a neutral uniform visual baseline to isolate visual evidence
+           from unconditional text priors.
+
+        Returns:
+            Dict[str, float]:
+                - 'image_loss': float (lower means higher model confidence given the image)
+                - 'neutral_loss': float (baseline text prior loss)
+                - 'visual_support_delta': float (positive indicates grounded visual support)
+                - 'confidence_score': float normalized [0.0, 1.0]
+        """
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model or processor is not initialized.")
+
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Standardized prompt for entity verification
+        text_target = f"a photo of {claim_phrase.strip()}"
+
+        try:
+            # Inputs with actual image
+            inputs_real = self.processor(images=image, text=text_target, return_tensors="pt")
+            inputs_real = {k: v.to(self.device) for k, v in inputs_real.items()}
+
+            # Neutral baseline image (solid gray) of matching size
+            neutral_img = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            inputs_neutral = self.processor(images=neutral_img, text=text_target, return_tensors="pt")
+            inputs_neutral = {k: v.to(self.device) for k, v in inputs_neutral.items()}
+
+            with torch.no_grad():
+                out_real = self.model(**inputs_real, labels=inputs_real["input_ids"])
+                out_neutral = self.model(**inputs_neutral, labels=inputs_neutral["input_ids"])
+
+                real_loss = float(out_real.loss.item())
+                neutral_loss = float(out_neutral.loss.item())
+                delta = neutral_loss - real_loss
+
+                # Sigmoid-normalized confidence: centered around delta=0.0 with slope 1.8
+                # Positive delta means real image explains text better than neutral image
+                confidence = 1.0 / (1.0 + torch.exp(torch.tensor(-1.8 * delta)).item())
+
+            return {
+                "image_loss": round(real_loss, 4),
+                "neutral_loss": round(neutral_loss, 4),
+                "visual_support_delta": round(delta, 4),
+                "confidence_score": round(confidence, 4),
+            }
+        except Exception as e:
+            logger.error("Error evaluating text grounding score for '%s': %s", claim_phrase, e)
+            return {
+                "image_loss": 5.0,
+                "neutral_loss": 2.5,
+                "visual_support_delta": -2.5,
+                "confidence_score": 0.05,
+            }
+
+    def clear_memory(self) -> None:
+        """Frees MPS and CUDA memory caches to ensure stability on 16GB unified memory."""
+        gc.collect()
+        if self.device.type == "mps" and hasattr(torch, "mps"):
+            try:
+                torch.mps.empty_cache()
+            except Exception:
+                pass
+        elif self.device.type == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()

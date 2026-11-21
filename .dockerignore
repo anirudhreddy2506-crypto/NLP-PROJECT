@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.git/
+.gitignore
+.DS_Store
+*.log
+outputs/logs/*
+!outputs/eval_results/evaluation_metrics.png
+!outputs/eval_results/training_curves.png
+!outputs/eval_results/eval_comparison.json
+!outputs/eval_results/predictions_comparison.csv
+

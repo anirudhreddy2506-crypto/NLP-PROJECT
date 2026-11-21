@@ -55,7 +55,10 @@ def test_image_level_splitting_no_leakage():
 
 def test_dataset_padding_masking():
     """Verify that pad tokens in labels are converted to -100 to ignore padding in cross-entropy loss."""
-    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+    try:
+        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base", local_files_only=True)
+    except Exception:
+        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     sample_records = [
         {"image_id": "test_1", "image": Image.new("RGB", (64, 64)), "captions": ["short"]}
     ]

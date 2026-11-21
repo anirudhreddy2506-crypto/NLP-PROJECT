@@ -1,4 +1,5 @@
-# VisionCaption AI Dependencies
+# VisionCaption AI - System Dependencies
+# Optimized for Apple Silicon (macOS Metal Performance Shaders / MPS) & Unified 16GB Memory
 torch>=2.2.0
 torchvision>=0.17.0
 torchaudio>=2.2.0
@@ -10,6 +11,7 @@ pyyaml>=6.0.1
 requests>=2.31.0
 pytest>=8.1.0
 pandas>=2.2.0
+altair>=5.0.0
 matplotlib>=3.8.0
 tqdm>=4.66.0
 datasets>=2.18.0
