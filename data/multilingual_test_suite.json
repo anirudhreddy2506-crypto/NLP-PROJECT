@@ -1,0 +1,39 @@
+[
+  {
+    "id": "sample_people_activity",
+    "category": "People and activities",
+    "english_caption": "A young girl in a yellow dress laughing and running through a sunny park.",
+    "key_elements": ["girl", "yellow dress", "laughing", "running", "sunny park"]
+  },
+  {
+    "id": "sample_animals",
+    "category": "Animals",
+    "english_caption": "A playful brown puppy chasing a ball on the green grass.",
+    "key_elements": ["puppy", "brown", "chasing", "ball", "green grass"]
+  },
+  {
+    "id": "sample_nature_landscape",
+    "category": "Nature and landscapes",
+    "english_caption": "A scenic snow-capped mountain overlooking a crystal clear blue lake under a bright sky.",
+    "key_elements": ["mountain", "snow-capped", "blue lake", "bright sky"]
+  },
+  {
+    "id": "sample_food_objects",
+    "category": "Food and objects",
+    "english_caption": "A fresh red apple and a bowl of ripe strawberries sitting on a wooden table.",
+    "key_elements": ["red apple", "strawberries", "bowl", "wooden table"]
+  },
+  {
+    "id": "sample_indoor_scenes",
+    "category": "Indoor and outdoor scenes",
+    "english_caption": "A cozy living room with a warm fireplace, a bookshelf, and a soft rug on the floor.",
+    "key_elements": ["living room", "fireplace", "bookshelf", "rug", "floor"]
+  },
+  {
+    "id": "sample_complex_scene",
+    "category": "Complex scenes containing multiple objects",
+    "english_caption": "A busy city street with cars stopped at a traffic light and people walking on the sidewalk.",
+    "key_elements": ["city street", "cars", "traffic light", "people", "sidewalk"]
+  }
+]
+

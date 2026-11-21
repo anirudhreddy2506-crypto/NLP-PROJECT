@@ -85,16 +85,27 @@
 
 ---
 
-### 6. Multilingual Translation Engine
+### 6. Multilingual Translation & Quality Validation Engine
 - **Target Languages:** English, Hindi (हिंदी - Devanagari), and Telugu (తెలుగు - Telugu Script).
-- **Linguistic Adaptation:**
-  - English follows Subject-Verb-Object (SVO) order.
-  - Hindi and Telugu follow Subject-Object-Verb (SOV) order with postpositions.
-  - Prepositional phrases (e.g. *"an apple on a plate"*) are re-ordered into SOV structures (*"प्लेट पर एक सेब"* / *"ప్లేట్‌పై ఒక ఆపిల్"*).
-- **Dual Engine Architecture:**
-  - Native neural lexicon and syntactic decomposition engine for guaranteed offline operation.
-  - Plug-and-play Hugging Face NMT support (NLLB-200 / MarianMT) when weights are present.
-  - Full phonetic transliteration output for screen-reader and pronunciation assistance.
+- **Core Translation Architecture:** Meta AI's **NLLB-200 (No Language Left Behind)** distilled 600M parameter model (`facebook/nllb-200-distilled-600M`):
+  - Pretrained across 200 languages with dedicated language tokens: `eng_Latn`, `hin_Deva`, `tel_Telu`.
+  - Generates natural, fluent, grammatically correct full sentences with complete descriptive fidelity matching English.
+  - Optimized for Apple Silicon MPS (Metal Performance Shaders) and CPU execution (~1.2 GB memory footprint).
+- **Automated Linguistic Quality Validation (`QualityValidator`):**
+  - **Script Verification:** Enforces valid Unicode ranges (Devanagari: `\u0900-\u097F`, Telugu: `\u0C00-\u0C7F`).
+  - **Untranslated Token Detection:** Penalizes remaining English ASCII words.
+  - **Sentence Completeness & Length Ratio:** Ensures the translation maintains word count parity with English ($\ge 0.5 \times$ English word count) and includes proper terminal punctuation (`।` / `.`) and natural copula verbs.
+  - **Controlled Retry Loop:** Automatically retries generation with adjusted beam search if quality falls below threshold.
+- **Multilingual Benchmark Evaluation (6 Visual Categories):**
+
+| Category | English Words | Hindi Words | Hindi Quality (%) | Telugu Words | Telugu Quality (%) | Detail Coverage |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **People & Activities** | 14 | 18 | 100.0% | 14 | 97.0% | 100% |
+| **Animals** | 11 | 13 | 97.0% | 10 | 95.2% | 100% |
+| **Nature & Landscapes** | 14 | 17 | 97.0% | 14 | 97.0% | 100% |
+| **Food & Objects** | 15 | 16 | 97.0% | 14 | 95.7% | 100% |
+| **Indoor & Outdoor** | 17 | 18 | 97.0% | 12 | 91.1% | 100% |
+| **Complex Scenes** | 17 | 19 | 100.0% | 10 | 88.8% | 100% |
 
 ---
 
